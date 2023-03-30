@@ -92,7 +92,14 @@ io.on("connection", (socket) => {
         );
       }
     } else if (event === "forward") {
-      socket.send(JSON.stringify({ event: data.event, data: data.data }));
+      if (data.event === "puppet-candidate") {
+        console.log(data.event, data.data);
+      }
+
+      socket.broadcast.emit(
+        "message",
+        JSON.stringify({ event: data.event, data: data.data })
+      );
     }
   });
 });
