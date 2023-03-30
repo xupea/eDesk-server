@@ -92,7 +92,10 @@ io.on("connection", (socket) => {
         );
       }
     } else if (event === "forward") {
-      if (data.event === "puppet-candidate") {
+      if (
+        data.event === "puppet-candidate" ||
+        data.event === "control-candidate"
+      ) {
         console.log(data.event, data.data);
       }
 
