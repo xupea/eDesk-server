@@ -8,6 +8,8 @@ const static = require("koa-static");
 const log4js = require("log4js");
 const { Server } = require("socket.io");
 
+const { getMachineId, setMachineId } = require("./db");
+
 const apiRouter = require("./router");
 
 log4js.configure({
@@ -53,18 +55,12 @@ const io = new Server(httpsServer);
 
 const code2ws = new Map();
 
-io.on("connection", (socket) => {
+io.on("connection", async (socket) => {
   const { userName } = socket;
 
-  let remoteCode = code2ws.get(userName);
+  await setMachineId(userName);
 
-  if (!remoteCode) {
-    remoteCode = Math.floor(Math.random() * (999999 - 100000)) + 100000;
-
-    code2ws.set(userName, remoteCode);
-  }
-
-  socket.on("message", (message) => {
+  socket.on("message", async (message) => {
     let parsedMessage = {};
     try {
       parsedMessage = JSON.parse(message);
@@ -76,7 +72,10 @@ io.on("connection", (socket) => {
 
     if (event === "login") {
       socket.send(
-        JSON.stringify({ data: { code: remoteCode }, event: "logined" })
+        JSON.stringify({
+          data: { code: await getMachineId(userName) },
+          event: "logined",
+        })
       );
     } else if (event === "control") {
       let remote = data.remote;
