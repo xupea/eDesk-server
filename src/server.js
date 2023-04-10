@@ -104,6 +104,10 @@ io.on("connection", async (socket) => {
       );
     }
   });
+
+  socket.on("disconnect", (reason) => {
+    console.log("disconnect", JSON.stringify(reason));
+  });
 });
 
 io.use((socket, next) => {
