@@ -8,7 +8,7 @@ const static = require("koa-static");
 const log4js = require("log4js");
 const { Server } = require("socket.io");
 
-const { getMachineId, setMachineId } = require("./db");
+const { getMachineId, setMachineId, setStatus, getStatus } = require("./db");
 
 const apiRouter = require("./router");
 
@@ -53,12 +53,12 @@ const httpsServer = https.createServer(options, (req, res) => {
 
 const io = new Server(httpsServer);
 
-const code2ws = new Map();
-
 io.on("connection", async (socket) => {
   const { userName } = socket;
 
+  const uuid = userName;
   await setMachineId(userName);
+  setStatus(uuid, "online");
 
   socket.on("message", async (message) => {
     let parsedMessage = {};
@@ -73,31 +73,29 @@ io.on("connection", async (socket) => {
     if (event === "login") {
       socket.send(
         JSON.stringify({
-          data: { code: await getMachineId(userName) },
+          data: { code: getMachineId(userName) },
           event: "logined",
         })
       );
     } else if (event === "control") {
-      let remote = data.remote;
+      let { from, to } = data;
 
-      if (code2ws.has(remote)) {
-        socket.send(JSON.stringify({ data: { remote }, event: "controlled" }));
+      const toStatus = getStatus(to);
 
-        const constrolledClientSocket = code2ws.get(remote);
+      console.log("control", from, to, toStatus);
 
-        constrolledClientSocket.emit(
-          "be-controlled",
-          JSON.stringify({ remote: code })
+      if (!toStatus) {
+        socket.send(
+          JSON.stringify({
+            data: { to, status: "failed" },
+            event: "control",
+          })
         );
-      }
-    } else if (event === "forward") {
-      if (
-        data.event === "puppet-candidate" ||
-        data.event === "control-candidate"
-      ) {
-        console.log(data.event, data.data);
+        return;
       }
 
+      socket.join([from, to]);
+    } else if (event === "forward") {
       socket.broadcast.emit(
         "message",
         JSON.stringify({ event: data.event, data: data.data })
@@ -107,6 +105,7 @@ io.on("connection", async (socket) => {
 
   socket.on("disconnect", (reason) => {
     console.log("disconnect", JSON.stringify(reason));
+    setStatus(uuid, "offline");
   });
 });
 

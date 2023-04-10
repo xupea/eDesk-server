@@ -36,4 +36,17 @@ function setMachineId(uuid) {
   return `${id}`.padStart(9, "0");
 }
 
-module.exports = { setMachineId, getMachineId };
+function setStatus(uuid, status) {
+  db.get("machines")
+    .find((machine) => machine.uuid === uuid)
+    .assign({ status })
+    .write();
+}
+
+function getStatus(uuid) {
+  const m = db.get("machines").find((machine) => machine.uuid === uuid).value();
+
+  return !!m && m.status === 'online';
+}
+
+module.exports = { setMachineId, getMachineId, setStatus, getStatus };
