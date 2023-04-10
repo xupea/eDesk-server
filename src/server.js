@@ -8,7 +8,15 @@ const static = require("koa-static");
 const log4js = require("log4js");
 const { Server } = require("socket.io");
 
-const { getMachineId, setMachineId, setStatus, getStatus } = require("./db");
+const {
+  getMachineId,
+  setMachineId,
+  setStatus,
+  getStatus,
+  createRoom,
+  getRoom,
+  deleteRoom,
+} = require("./db");
 
 const apiRouter = require("./router");
 
@@ -53,12 +61,12 @@ const httpsServer = https.createServer(options, (req, res) => {
 
 const io = new Server(httpsServer);
 
-io.on("connection", async (socket) => {
+io.on("connection", (socket) => {
   const { userName } = socket;
 
   const uuid = userName;
-  await setMachineId(userName);
-  setStatus(uuid, "online");
+  const machineId = setMachineId(userName);
+  setStatus(machineId, "online");
 
   socket.on("message", async (message) => {
     let parsedMessage = {};
@@ -84,28 +92,33 @@ io.on("connection", async (socket) => {
 
       console.log("control", from, to, toStatus);
 
-      if (!toStatus) {
-        socket.send(
-          JSON.stringify({
-            data: { to, status: "failed" },
-            event: "control",
-          })
-        );
-        return;
+      if (toStatus) {
+        const room = createRoom(from, to);
+        socket.join(room);
       }
 
-      socket.join([from, to]);
-    } else if (event === "forward") {
-      socket.broadcast.emit(
-        "message",
-        JSON.stringify({ event: data.event, data: data.data })
+      socket.send(
+        JSON.stringify({
+          data: { to, status: toStatus ? "online" : "failed" },
+          event: "control",
+        })
       );
+    } else if (event === "forward") {
+      const room = getRoom(machineId);
+      console.log("forward", room);
+      socket
+        .to(room)
+        .emit(
+          "message",
+          JSON.stringify({ event: data.event, data: data.data })
+        );
     }
   });
 
   socket.on("disconnect", (reason) => {
     console.log("disconnect", JSON.stringify(reason));
-    setStatus(uuid, "offline");
+    deleteRoom(machineId);
+    setStatus(machineId, "offline");
   });
 });
 

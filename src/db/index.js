@@ -6,18 +6,14 @@ const adapter = new JSONFileSync(path.join(__dirname, "../../db.json"));
 
 const db = low(adapter);
 
-db.defaults({ machines: [] }).write();
+db.defaults({ machines: [], maxId: 0, rooms: [] }).write();
 
 function findMaxId() {
-  let max = 0;
+  return db.get("maxId").value();
+}
 
-  db.get("machines").forEach((machine) => {
-    if (machine.id > max) {
-      max = machine.id;
-    }
-  });
-
-  return max;
+function setMaxId(id) {
+  db.set("maxId", id).write();
 }
 
 function getMachineId(uuid) {
@@ -25,28 +21,63 @@ function getMachineId(uuid) {
 }
 
 function setMachineId(uuid) {
-  const m = db.get("machines").find((machine) => machine.uuid === uuid).value();
+  const m = db
+    .get("machines")
+    .find((machine) => machine.uuid === uuid)
+    .value();
 
   let id = m ? m.id : findMaxId() + 1;
 
   if (!m) {
+    setMaxId(id);
     db.get("machines").push({ uuid, id }).write();
   }
 
-  return `${id}`.padStart(9, "0");
+  return id;
 }
 
-function setStatus(uuid, status) {
+function setStatus(machineId, status) {
   db.get("machines")
-    .find((machine) => machine.uuid === uuid)
+    .find((machine) => machine.id === machineId)
     .assign({ status })
     .write();
 }
 
-function getStatus(uuid) {
-  const m = db.get("machines").find((machine) => machine.uuid === uuid).value();
+function getStatus(machineId) {
+  const m = db
+    .get("machines")
+    .find((machine) => machine.id === machineId)
+    .value();
 
-  return !!m && m.status === 'online';
+  return !!m && m.status === "online";
 }
 
-module.exports = { setMachineId, getMachineId, setStatus, getStatus };
+function createRoom(from, to) {
+  const room = `${from}-${to}`;
+  db.get("rooms").push({ room, from, to }).write();
+  return room;
+}
+
+function getRoom(id) {
+  const r = db
+    .get("rooms")
+    .find((room) => room.from === id || room.to === id)
+    .value();
+  return r ? r.room : null;
+}
+
+function deleteRoom(id) {
+  db.get("rooms")
+    .remove((room) => room.from === id || room.to === id)
+    .write();
+}
+
+module.exports = {
+  setMachineId,
+  getMachineId,
+  setStatus,
+  getStatus,
+  createRoom,
+  getRoom,
+  deleteRoom,
+};
