@@ -1,19 +1,17 @@
-const { LowSync } = require("lowdb/lib");
-const { JSONFileSync } = require("lowdb/lib/adapters");
+const low = require("lowdb");
+const JSONFileSync = require("lowdb/adapters/FileSync");
+const path = require("path");
 
-const adapter = new JSONFileSync(path.join(__dirname, "../db.json"));
-const db = new LowSync(adapter);
+const adapter = new JSONFileSync(path.join(__dirname, "../../db.json"));
 
-db.read();
+const db = low(adapter);
 
-db.data ||= { machines: [] };
-
-const { machines } = db.data;
+db.defaults({ machines: [] }).write();
 
 function findMaxId() {
   let max = 0;
 
-  machines.forEach((machine) => {
+  db.get("machines").forEach((machine) => {
     if (machine.id > max) {
       max = machine.id;
     }
@@ -27,17 +25,15 @@ function getMachineId(uuid) {
 }
 
 function setMachineId(uuid) {
-  const m = machines.find((machine) => machine.uuid === uuid);
+  const m = db.get("machines").find((machine) => machine.uuid === uuid).value();
 
   let id = m ? m.id : findMaxId() + 1;
 
   if (!m) {
-    machines.push({ uuid, id });
-
-    db.write();
+    db.get("machines").push({ uuid, id }).write();
   }
 
-  return `${id}`.padStart("0", 9);
+  return `${id}`.padStart(9, "0");
 }
 
-module.exports = { getMachineId, setMachineId };
+module.exports = { setMachineId, getMachineId };
