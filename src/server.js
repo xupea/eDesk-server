@@ -94,7 +94,19 @@ io.on("connection", (socket) => {
 
       if (toStatus) {
         const room = createRoom(from, to);
+        console.log("主控端进入房间: ", room);
         socket.join(room);
+      }
+
+      const sockets = await io.fetchSockets();
+      const toSocket = sockets.find((s) => getMachineId(s.userName) === to);
+      if (toSocket) {
+        toSocket.send(
+          JSON.stringify({
+            data: { from },
+            event: "asking-control",
+          })
+        );
       }
 
       socket.send(
@@ -103,6 +115,14 @@ io.on("connection", (socket) => {
           event: "control",
         })
       );
+    } else if (event === "control-allow") {
+      const room = getRoom(machineId);
+      console.log("傀儡端进入房间: ", room);
+      socket.join(room);
+
+      socket
+        .to(room)
+        .emit("message", JSON.stringify({ event: "control-ready" }));
     } else if (event === "forward") {
       const room = getRoom(machineId);
       console.log("forward", room);
