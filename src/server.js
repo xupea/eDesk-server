@@ -132,6 +132,12 @@ io.on("connection", (socket) => {
           "message",
           JSON.stringify({ event: data.event, data: data.data })
         );
+    } else if (event === "control-end") {
+      const room = getRoom(machineId);
+      console.log("control-end", room);
+      socket.to(room).emit("message", JSON.stringify({ event: "control-end" }));
+      io.socketsLeave(room);
+      deleteRoom(room);
     }
   });
 
