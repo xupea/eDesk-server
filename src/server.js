@@ -123,6 +123,14 @@ io.on("connection", (socket) => {
       socket
         .to(room)
         .emit("message", JSON.stringify({ event: "control-ready" }));
+    } else if (event === "control-deny") {
+      const room = getRoom(machineId);
+      socket
+        .to(room)
+        .emit("message", JSON.stringify({ event: "control-deny" }));
+      // dismiss room
+      io.socketsLeave(room);
+      deleteRoom(room);
     } else if (event === "forward") {
       const room = getRoom(machineId);
       console.log("forward", room);
