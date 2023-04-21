@@ -54,6 +54,17 @@ function getStatus(machineId) {
 
 function createRoom(from, to) {
   const room = `${from}-${to}`;
+
+  const r = db
+    .get("rooms")
+    .find((room) => room.room === room)
+    .value();
+
+  if (r) {
+    console.log('room exists: ' + room);
+    return room;
+  }
+
   db.get("rooms").push({ room, from, to }).write();
   return room;
 }
@@ -64,6 +75,14 @@ function getRoom(id) {
     .find((room) => room.from === id || room.to === id)
     .value();
   return r ? r.room : null;
+}
+
+function getTo(from) {
+  const r = db
+    .get("rooms")
+    .find((room) => room.from === from)
+    .value();
+  return r ? r.to : null;
 }
 
 function deleteRoom(id) {
@@ -79,5 +98,6 @@ module.exports = {
   getStatus,
   createRoom,
   getRoom,
+  getTo,
   deleteRoom,
 };

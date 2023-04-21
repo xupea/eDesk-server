@@ -16,6 +16,7 @@ const {
   createRoom,
   getRoom,
   deleteRoom,
+  getTo,
 } = require("./db");
 
 const apiRouter = require("./router");
@@ -63,8 +64,6 @@ const io = new Server(httpsServer);
 
 io.on("connection", (socket) => {
   const { userName } = socket;
-
-  const uuid = userName;
   const machineId = setMachineId(userName);
   setStatus(machineId, "online");
 
@@ -123,6 +122,23 @@ io.on("connection", (socket) => {
       socket
         .to(room)
         .emit("message", JSON.stringify({ event: "control-ready" }));
+    } else if (event === "control-cancel") {
+      // machineId is from
+      const room = getRoom(machineId);
+      const to = getTo(machineId);
+      const sockets = await io.fetchSockets();
+      const toSocket = sockets.find((s) => getMachineId(s.userName) === to);
+      if (toSocket) {
+        toSocket.send(
+          JSON.stringify({
+            data: { from: machineId, to },
+            event: "control-cancel",
+          })
+        );
+      }
+      // dismiss room
+      io.socketsLeave(room);
+      deleteRoom(room);
     } else if (event === "control-deny") {
       const room = getRoom(machineId);
       socket
